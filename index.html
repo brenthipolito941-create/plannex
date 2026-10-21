@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17182F">
+    <meta name="description" content="Plannex is your calm, everyday student planner for classes, tasks, spending, and grades.">
+    <title>Plannex — your student planner</title>
+
+    <!-- Fonts and the main visual style sheet. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <!-- Shared sidebar: the data-page names must match the page section IDs below. -->
+      <aside class="sidebar" id="sidebar">
+        <a class="brand" href="#overview" aria-label="Plannex home">
+          <span class="brand-mark"><svg viewBox="300 110 420 420" aria-hidden="true"><image href="assets/plannex-logo.png" width="1110" height="835"></image></svg></span><span class="brand-name">PLANN<span class="brand-green">E</span>X<small>Make every day Count</small></span>
+        </a>
+
+        <p class="nav-label">Workspace</p>
+        <nav class="primary-nav" aria-label="Main navigation">
+          <a class="nav-link active" href="#overview" data-page="overview"><span class="nav-icon">◫</span>Overview</a>
+          <a class="nav-link" href="#planner" data-page="planner"><span class="nav-icon">☑</span>Daily planner</a>
+          <a class="nav-link" href="#classes" data-page="classes"><span class="nav-icon">▦</span>Class schedule</a>
+          <a class="nav-link" href="#budget" data-page="budget"><span class="nav-icon">↗</span>My budget</a>
+          <a class="nav-link" href="#grades" data-page="grades"><span class="nav-icon">✳</span>Grade calculator</a>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <div class="sidebar-note">
+            <span class="note-spark">✳</span>
+            <p>One thing at a time.<br><strong>You’ve got this.</strong></p>
+            <span class="note-doodle">↗</span>
+          </div>
+          <div class="profile">
+            <div class="avatar">JS</div>
+            <div><strong>Jamie Santos</strong><small>Student workspace</small></div>
+            <span class="profile-dots">···</span>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-area">
+        <!-- Shared header: JavaScript updates the page name and today's date. -->
+        <header class="topbar">
+          <button class="mobile-menu" id="menu-toggle" aria-label="Open menu">☰</button>
+          <div class="breadcrumb">
+            <span>My workspace</span>
+            <b>/</b>
+            <strong id="crumb-current">Overview</strong>
+          </div>
+          <div class="topbar-right">
+            <span class="today-chip"><span class="live-dot"></span><span id="today-label"></span></span>
+            <button class="icon-button" id="reset-data" title="Restore sample data" aria-label="Restore sample data">↻</button>
+            <div class="avatar avatar-small">JS</div>
+          </div>
+        </header>
+
+        <div class="content-wrap">
+          <!-- Overview: a quick summary of tasks, classes, budget, and study momentum. -->
+          <section class="page-section active-page" id="page-overview">
+            <div class="welcome-row">
+              <div>
+                <p class="eyebrow" id="greeting">YOUR DAY, AT A GLANCE</p>
+                <h1>A little more <span>organized.</span></h1>
+                <p class="page-subtitle">A calm place to keep your student life together.</p>
+              </div>
+              <button class="button button-dark" data-action="add-task"><span>＋</span> Add a task</button>
+            </div>
+
+            <div class="stats-grid">
+              <article class="stat-card">
+                <div class="stat-top"><span>Tasks for today</span><span class="stat-icon icon-green">☑</span></div>
+                <div class="stat-number" id="stat-tasks">0 <small>tasks left</small></div>
+                <div class="progress-track"><span id="task-progress"></span></div>
+                <div class="stat-foot" id="task-foot">Keep your momentum going</div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-top"><span>Budget remaining</span><span class="stat-icon icon-peach">↗</span></div>
+                <div class="stat-number" id="stat-budget">₱0</div>
+                <div class="stat-foot"><span class="mini-dot"></span><span id="budget-foot">of your monthly allowance</span></div>
+              </article>
+              <article class="stat-card">
+                <div class="stat-top"><span>Current raw grade</span><span class="stat-icon icon-lilac">✳</span></div>
+                <div class="stat-number" id="stat-grade">— <small>%</small></div>
+                <div class="stat-foot">From your entered score totals</div>
+              </article>
+            </div>
+
+            <div class="dashboard-grid">
+              <article class="panel today-panel">
+                <div class="panel-heading">
+                  <div><p class="eyebrow">MAKE IT COUNT</p><h2>Today’s plan <span class="heading-count" id="today-count">0</span></h2></div>
+                  <a href="#planner" class="text-link">See all <span>→</span></a>
+                </div>
+                <div class="task-list" id="overview-tasks"></div>
+                <button class="add-inline" data-action="add-task">＋ Add a task</button>
+              </article>
+
+              <article class="panel schedule-panel">
+                <div class="panel-heading">
+                  <div><p class="eyebrow">UP NEXT</p><h2>Your schedule</h2></div>
+                  <a href="#classes" class="text-link">Full week <span>→</span></a>
+                </div>
+                <div class="next-class" id="next-class"></div>
+              </article>
+
+              <article class="panel spending-panel">
+                <div class="panel-heading">
+                  <div><p class="eyebrow">MONEY CHECK-IN</p><h2>This month</h2></div>
+                  <a href="#budget" class="text-link">Budget <span>→</span></a>
+                </div>
+                <div class="spend-total"><strong id="overview-spent">₱0</strong><span>spent so far</span></div>
+                <div class="budget-bar"><span id="budget-bar"></span></div>
+                <div class="budget-labels"><span id="spent-label">₱0 spent</span><span id="limit-label">₱0 limit</span></div>
+                <div class="recent-transactions" id="recent-transactions"></div>
+              </article>
+
+              <article class="panel focus-panel">
+                <div class="focus-copy">
+                  <span class="focus-badge">A SMALL REMINDER</span>
+                  <h2>Progress is still progress, <em>even on the busy days.</em></h2>
+                  <p>Pick one thing to start. The rest can follow.</p>
+                </div>
+                <div class="focus-art"><span class="art-sun"></span><span class="art-star">✳</span><span class="art-plant">♧</span></div>
+              </article>
+            </div>
+          </section>
+
+          <!-- Daily planner: filter tasks by all, still to do, or completed. -->
+          <section class="page-section" id="page-planner">
+            <div class="welcome-row">
+              <div>
+                <p class="eyebrow">YOUR EVERYDAY RESET</p>
+                <h1>Daily <span>planner.</span></h1>
+                <p class="page-subtitle">A simple list is a good place to begin.</p>
+              </div>
+              <button class="button button-dark" data-action="add-task">＋ Add a task</button>
+            </div>
+
+            <div class="planner-layout">
+              <article class="panel planner-main">
+                <div class="panel-heading">
+                  <div><p class="eyebrow" id="planner-date">TODAY</p><h2>My to-do list</h2></div>
+                  <span class="heading-count" id="planner-count">0</span>
+                </div>
+                <div class="filter-tabs">
+                  <button class="filter-tab selected" data-filter="all">All</button>
+                  <button class="filter-tab" data-filter="open">To do</button>
+                  <button class="filter-tab" data-filter="done">Completed</button>
+                </div>
+                <div class="task-list full-task-list" id="planner-tasks"></div>
+              </article>
+
+              <aside class="panel planner-side">
+                <p class="eyebrow">A GOOD RHYTHM</p>
+                <h2>Make space for breaks.</h2>
+                <p class="page-subtitle">Try a short focus session, then step away for a few minutes. Small resets add up.</p>
+                <div class="break-card"><span>✳</span><div><strong>Focus for 25 minutes</strong><small>One task. No rush.</small></div></div>
+                <div class="week-mini" id="week-mini"></div>
+              </aside>
+            </div>
+          </section>
+
+          <!-- Class schedule: JavaScript builds the weekly grid from the class data. -->
+          <section class="page-section" id="page-classes">
+            <div class="welcome-row">
+              <div>
+                <p class="eyebrow">YOUR WEEK, IN ONE PLACE</p>
+                <h1>Class <span>schedule.</span></h1>
+                <p class="page-subtitle">Know where you need to be, and when.</p>
+              </div>
+              <button class="button button-dark" data-action="add-class">＋ Add a class</button>
+            </div>
+
+            <article class="panel timetable-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">SEMESTER 1 · 2026</p><h2>Weekly timetable</h2></div>
+                <div class="schedule-legend"><span><i class="legend-dot dot-green"></i>Classes</span></div>
+              </div>
+              <div class="table-scroll"><div class="timetable" id="timetable"></div></div>
+            </article>
+            <p class="section-hint">Tip: classes repeat each week. Add your own subjects to make this schedule yours.</p>
+          </section>
+
+          <!-- Budget: allowance and expenses are stored together in the planner state. -->
+          <section class="page-section" id="page-budget">
+            <div class="welcome-row">
+              <div>
+                <p class="eyebrow">SPEND WITH A LITTLE MORE CLARITY</p>
+                <h1>My <span>budget.</span></h1>
+                <p class="page-subtitle">Keep track of what comes in and where it goes.</p>
+              </div>
+              <button class="button button-dark" data-action="add-expense">＋ Add expense</button>
+            </div>
+
+            <div class="budget-stats">
+              <article class="stat-card budget-stat">
+                <span>Monthly allowance</span>
+                <strong id="budget-total">₱0</strong>
+                <button class="subtle-button" data-action="edit-budget">Edit allowance →</button>
+              </article>
+              <article class="stat-card budget-stat"><span>Total spent</span><strong id="budget-spent">₱0</strong><small>This month</small></article>
+              <article class="stat-card budget-stat"><span>Left to spend</span><strong id="budget-remaining">₱0</strong><small id="budget-remaining-note">You’re doing great</small></article>
+            </div>
+
+            <article class="panel expenses-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">THE LITTLE THINGS ADD UP</p><h2>Recent expenses</h2></div>
+                <select id="expense-filter" class="select-small" aria-label="Filter expenses">
+                  <option value="all">All categories</option>
+                  <option>Food</option>
+                  <option>Transport</option>
+                  <option>School</option>
+                  <option>Personal</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div id="expense-list" class="expense-list"></div>
+            </article>
+          </section>
+
+          <!-- Grade calculator: enter assessment points, then compute the raw grade. -->
+          <section class="page-section" id="page-grades">
+            <div class="welcome-row">
+              <div>
+                <p class="eyebrow">KEEP AN EYE ON YOUR PROGRESS</p>
+                <h1>Grade <span>calculator.</span></h1>
+                <p class="page-subtitle">Enter the score and total points for each assessment.</p>
+              </div>
+            </div>
+
+            <div class="grade-summary">
+              <div>
+                <span class="eyebrow">OVERALL RAW GRADE</span>
+                <div class="grade-big" id="grade-average">—<small>%</small></div>
+                <p class="grade-caption" id="grade-caption">Enter scores and totals, then compute your grade.</p>
+              </div>
+              <div class="grade-summary-art"><span>✳</span></div>
+            </div>
+
+            <article class="panel grades-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">ASSESSMENT ITEMS</p><h2>Grade tracker</h2></div>
+                <span class="grade-count" id="grade-count">0 rows</span>
+              </div>
+              <div class="grades-table-wrap">
+                <table class="grades-table">
+                  <thead>
+                    <tr><th>CATEGORY</th><th>SCORE</th><th>TOTAL</th><th>RAW GRADE</th><th></th></tr>
+                  </thead>
+                  <tbody id="grade-rows"></tbody>
+                </table>
+              </div>
+              <div class="grade-actions">
+                <button class="button button-quiet" id="add-grade-row" type="button">＋ Add row</button>
+                <button class="button button-dark" id="compute-grade" type="button">Compute grade</button>
+              </div>
+              <p class="grade-note">Raw grade = points earned ÷ points possible × 100. All entered items contribute by their point totals.</p>
+            </article>
+          </section>
+
+          <footer class="footer-note">Made for the little things that make student life feel easier. <span>✳</span></footer>
+        </div>
+      </main>
+    </div>
+
+    <!-- Shared feedback message and entry dialog used by task, class, and budget actions. -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <dialog id="entry-dialog">
+      <form id="entry-form">
+        <div class="dialog-head">
+          <div><p class="eyebrow" id="dialog-eyebrow">QUICK ADD</p><h2 id="dialog-title">Add a task</h2></div>
+          <button class="close-dialog" type="button" data-close-dialog aria-label="Close">×</button>
+        </div>
+        <div id="dialog-fields"></div>
+        <div class="dialog-actions">
+          <button class="button button-quiet" type="button" data-close-dialog>Cancel</button>
+          <button class="button button-dark" id="dialog-save" type="submit">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Load behavior after all page controls are in place. -->
+    <script src="app.js"></script>
+  </body>
+</html>
