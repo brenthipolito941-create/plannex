@@ -2,21 +2,28 @@
   // 1. Starter data and settings
   // These values set the first-run sample content and the timetable/grade options.
   const KEY = "plannex-student-planner-v1";
-  const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const HOURS = [
-    "8:00",
-    "9:00",
+    "08:00",
+    "09:00",
     "10:00",
     "11:00",
     "12:00",
-    "1:00",
-    "2:00",
-    "3:00",
-    "4:00",
+    "13:00",
+    "14:00",
+    "15:00",
+    "16:00",
   ];
-  const GRADE_CATEGORIES = ["Quiz", "Long Quiz", "Assignment", "Exam"];
+  const GRADE_CATEGORIES = ["Exam", "Performance Task", "Quiz", "Long Quiz", "Assignment"];
   const seed = {
     allowance: 12000,
+    gradeWeights: {
+      Exam: 40,
+      "Performance Task": 40,
+      Quiz: 10,
+      "Long Quiz": 0,
+      Assignment: 10,
+    },
     tasks: [
       {
         id: "t1",
@@ -177,6 +184,7 @@
       { id: "g3", category: "Long Quiz", score: 42, total: 50 },
       { id: "g4", category: "Assignment", score: 27, total: 30 },
       { id: "g5", category: "Exam", score: 84, total: 100 },
+      { id: "g6", category: "Performance Task", score: 28, total: 30 },
     ],
   };
 
@@ -184,9 +192,28 @@
   // Short DOM helpers keep the render functions readable.
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
+  // Convert older 12-hour text values and new time-picker values to HH:mm.
+  function normalizeClassTime(value) {
+    const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+    if (!match) return "09:00";
+    let hour = Number(match[1]);
+    const minute = Number(match[2]);
+    const period = match[3]?.toUpperCase();
+    if (period === "PM" && hour < 12) hour += 12;
+    if (period === "AM" && hour === 12) hour = 0;
+    // Earlier sample data used 1:00-4:00 to mean 1:00-4:00 PM.
+    if (!period && match[1].length === 1 && hour >= 1 && hour <= 4) hour += 12;
+    if (hour > 23 || minute > 59) return "09:00";
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  }
   let state;
   try {
-    state = JSON.parse(localStorage.getItem(KEY)) || structuredClone(seed);
+    const saved = JSON.parse(localStorage.getItem(KEY));
+    state = saved ? { ...structuredClone(seed), ...saved } : structuredClone(seed);
+    state.gradeWeights = { ...seed.gradeWeights, ...(state.gradeWeights || {}) };
+    state.classes = (Array.isArray(state.classes) ? state.classes : structuredClone(seed.classes))
+      .map((item) => ({ ...item, time: normalizeClassTime(item.time) }));
+    if (!Array.isArray(state.grades)) state.grades = structuredClone(seed.grades);
     // Keep old subject grades in storage before switching to assessment rows.
     if (state.grades?.some((grade) => !("category" in grade))) {
       state.previousSubjectGrades = structuredClone(state.grades);
@@ -266,13 +293,38 @@
       ? (score / total) * 100
       : null;
   }
-  // Calculate a raw grade from points, so items with larger totals naturally count more.
+  function getGradeWeightTotal() {
+    return GRADE_CATEGORIES.reduce(
+      (sum, category) => sum + (Number(state.gradeWeights[category]) || 0),
+      0,
+    );
+  }
+  function getGradedWeight() {
+    return GRADE_CATEGORIES.reduce((sum, category) => {
+      const hasScores = state.grades.some(
+        (row) => row.category === category && getRowGrade(row) !== null,
+      );
+      return sum + (hasScores ? Number(state.gradeWeights[category]) || 0 : 0);
+    }, 0);
+  }
+  // Weight each category's points average by the percentage from the syllabus.
   function getOverallRawGrade() {
-    const valid = state.grades.filter((row) => getRowGrade(row) !== null);
-    if (!valid.length) return null;
-    const earned = valid.reduce((sum, row) => sum + Number(row.score), 0);
-    const possible = valid.reduce((sum, row) => sum + Number(row.total), 0);
-    return possible > 0 ? (earned / possible) * 100 : null;
+    if (Math.abs(getGradeWeightTotal() - 100) > 0.01) return null;
+    let weightedTotal = 0;
+    let includedWeight = 0;
+    for (const category of GRADE_CATEGORIES) {
+      const weight = Number(state.gradeWeights[category]) || 0;
+      const rows = state.grades.filter(
+        (row) => row.category === category && getRowGrade(row) !== null,
+      );
+      if (!rows.length || weight <= 0) continue;
+      const earned = rows.reduce((sum, row) => sum + Number(row.score), 0);
+      const possible = rows.reduce((sum, row) => sum + Number(row.total), 0);
+      if (possible <= 0) continue;
+      weightedTotal += (earned / possible) * 100 * weight;
+      includedWeight += weight;
+    }
+    return includedWeight > 0 ? weightedTotal / includedWeight : null;
   }
   function renderTasks() {
     const remaining = state.tasks.filter((t) => !t.done).length,
@@ -295,25 +347,57 @@
     );
   }
   function renderBudget() {
+    const allowance = Number(state.allowance) || 0;
     const spent = state.expenses.reduce((sum, e) => sum + Number(e.amount), 0),
-      remaining = Number(state.allowance) - spent,
+      remaining = allowance - spent,
       ratio =
-        Number(state.allowance) > 0
-          ? Math.min(100, (spent / Number(state.allowance)) * 100)
+        allowance > 0
+          ? Math.min(100, (spent / allowance) * 100)
           : 100;
+    // Convert a monthly allowance into an average weekly target across 52 weeks.
+    const weekStart = new Date(today);
+    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const dateKey = (date) =>
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const weekStartKey = dateKey(weekStart),
+      weekEndKey = dateKey(weekEnd),
+      weeklyTarget = (allowance * 12) / 52,
+      weeklySpent = state.expenses.reduce(
+        (sum, expense) =>
+          expense.date >= weekStartKey && expense.date <= weekEndKey
+            ? sum + (Number(expense.amount) || 0)
+            : sum,
+        0,
+      ),
+      weeklyLeft = weeklyTarget - weeklySpent;
+    const formatWeekDate = (date) =>
+      date.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
+    $("#budget-week-range").textContent =
+      `${formatWeekDate(weekStart)} – ${formatWeekDate(weekEnd)}`;
+    $("#budget-week-target").textContent = money(weeklyTarget);
+    $("#budget-week-spent").textContent = money(weeklySpent);
+    $("#budget-week-left").textContent = money(weeklyLeft);
+    $("#budget-week-left").style.color = weeklyLeft < 0 ? "#ce8065" : "";
     $("#stat-budget").textContent = money(remaining);
     $("#budget-foot").textContent =
-      `of your ${money(state.allowance)} monthly allowance`;
+      `of your ${money(allowance)} monthly allowance`;
     $("#overview-spent").textContent = money(spent);
     $("#spent-label").textContent = `${money(spent)} spent`;
-    $("#limit-label").textContent = `${money(state.allowance)} limit`;
+    $("#limit-label").textContent = `${money(allowance)} limit`;
     $("#budget-bar").style.width = `${ratio}%`;
-    $("#budget-total").textContent = money(state.allowance);
+    $("#budget-total").textContent = money(allowance);
     $("#budget-spent").textContent = money(spent);
     $("#budget-remaining").textContent = money(remaining);
     $("#budget-remaining").style.color = remaining < 0 ? "#ce8065" : "";
     $("#budget-remaining-note").textContent =
       remaining < 0 ? "Over your monthly allowance" : "You’re doing great";
+    $("#rule-allowance").textContent = money(allowance);
+    $("#rule-needs").textContent = money(allowance * 0.5);
+    $("#rule-wants").textContent = money(allowance * 0.3);
+    $("#rule-savings").textContent = money(allowance * 0.2);
     const icons = EXPENSE_ICONS;
     $("#recent-transactions").innerHTML =
       state.expenses
@@ -340,26 +424,48 @@
           .join("")
       : '<div class="empty-state">No expenses in this category.</div>';
   }
+  function formatPercent(value) {
+    return `${Number(Number(value).toFixed(1))}%`;
+  }
+  function renderGradeWeights() {
+    $("#grade-weights").innerHTML = GRADE_CATEGORIES.map((category, index) => {
+      const inputId = `grade-weight-${index}`;
+      return `<div class="grade-weight-card"><label for="${inputId}">${escapeHtml(category)}</label><div class="grade-weight-input-wrap"><input id="${inputId}" type="number" min="0" max="100" step="0.1" value="${escapeHtml(state.gradeWeights[category] ?? 0)}" data-grade-weight="${escapeHtml(category)}" aria-label="${escapeHtml(category)} weight percentage"><span>%</span></div></div>`;
+    }).join("");
+  }
   function renderGradeSummary() {
-    const avg = state.gradesComputed ? getOverallRawGrade() : null;
+    const weightTotal = getGradeWeightTotal();
+    const weightsValid = Math.abs(weightTotal - 100) <= 0.01;
+    const gradedWeight = getGradedWeight();
+    const avg = state.gradesComputed && weightsValid ? getOverallRawGrade() : null;
+    $("#grade-weight-total").textContent = formatPercent(weightTotal);
+    $("#grade-weight-status").textContent = weightsValid
+      ? gradedWeight > 0
+        ? `Weights total 100%. Scores currently cover ${formatPercent(gradedWeight)} of the course weight.`
+        : "Weights total 100%. Add scores in one or more weighted categories."
+      : `Weights total ${formatPercent(weightTotal)}. Adjust them to 100% before calculating.`;
+    $("#grade-weight-status").classList.toggle("is-valid", weightsValid);
     $("#stat-grade").innerHTML =
       avg === null
         ? "— <small>%</small>"
         : `${avg.toFixed(1)}<small>%</small>`;
     $("#grade-average").innerHTML =
       avg === null ? "—<small>%</small>" : `${avg.toFixed(1)}<small>%</small>`;
-    $("#grade-caption").textContent =
-      avg === null
-        ? "Enter scores and totals, then compute your grade."
-        : avg >= 90
-          ? "Excellent work — your effort is showing."
-          : avg >= 75
-            ? "You’re making steady progress. Keep going."
-            : "Use this result to guide your next study session.";
+    const resultMessage = avg >= 90
+      ? "Excellent work — your effort is showing."
+      : avg >= 75
+        ? "You’re making steady progress. Keep going."
+        : "Use this result to guide your next study session.";
+    $("#grade-caption").textContent = avg === null
+      ? weightsValid
+        ? "Enter scores and totals, then compute your weighted grade."
+        : "Set category weights that add up to 100% before calculating."
+      : `Based on scores covering ${formatPercent(gradedWeight)} of your course weight. ${resultMessage}`;
     $("#grade-count").textContent =
       `${state.grades.length} ${state.grades.length === 1 ? "row" : "rows"}`;
   }
   function renderGrades() {
+    renderGradeWeights();
     renderGradeSummary();
     $("#grade-rows").innerHTML = state.grades.length
       ? state.grades
@@ -372,27 +478,38 @@
           .join("")
       : '<tr><td colspan="5"><div class="empty-state">No grade rows yet. Add a row to get started.</div></td></tr>';
   }
-  // The timetable uses 1:00–4:00 for afternoon classes; normalize those for comparisons.
+  // Compare class times as minutes after midnight so custom times sort correctly.
   function toMinutes(time) {
-    const [hour, minute] = time.split(":").map(Number);
-    const normalized = hour >= 1 && hour <= 4 ? hour + 12 : hour;
-    return normalized * 60 + (minute || 0);
+    const [hour, minute] = normalizeClassTime(time).split(":").map(Number);
+    return hour * 60 + minute;
+  }
+  function formatTime(time) {
+    const [hour, minute] = normalizeClassTime(time).split(":").map(Number);
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${String(minute).padStart(2, "0")} ${hour < 12 ? "AM" : "PM"}`;
   }
   function renderClasses() {
     const grid = $("#timetable");
     grid.innerHTML = `<div class="time-head">TIME</div>${DAYS.map((d) => `<div class="day-head">${d.toUpperCase()}</div>`).join("")}`;
-    for (const hour of HOURS) {
+    const classTimes = [...new Set([
+      ...HOURS,
+      ...state.classes.map((item) => normalizeClassTime(item.time)),
+    ])].sort((a, b) => toMinutes(a) - toMinutes(b));
+    for (const time of classTimes) {
       grid.insertAdjacentHTML(
         "beforeend",
-        `<div class="time-slot">${hour}</div>`,
+        `<div class="time-slot">${formatTime(time)}</div>`,
       );
       for (const day of DAYS) {
-        const item = state.classes.find(
-          (c) => c.day === day && parseInt(c.time, 10) === parseInt(hour, 10),
+        const items = state.classes.filter(
+          (item) => item.day === day && normalizeClassTime(item.time) === time,
         );
+        const blocks = items.map((item) =>
+          `<div class="class-block" title="Click to remove this class" data-delete-class="${item.id}"><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(formatTime(item.time))} · ${escapeHtml(item.room)}</small></div>`,
+        ).join("");
         grid.insertAdjacentHTML(
           "beforeend",
-          `<div class="class-slot">${item ? `<div class="class-block" title="Click to remove this class" data-delete-class="${item.id}"><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.room)}</small></div>` : ""}</div>`,
+          `<div class="class-slot">${blocks}</div>`,
         );
       }
     }
@@ -405,7 +522,7 @@
       .sort((a, b) => toMinutes(a.time) - toMinutes(b.time))[0];
     const next = $("#next-class");
     next.innerHTML = upcoming
-      ? `<div class="class-card"><span class="class-time">${escapeHtml(upcoming.time)}</span><span class="class-stripe"></span><span class="class-info"><strong>${escapeHtml(upcoming.name)}</strong><small>${escapeHtml(upcoming.room)}</small></span></div><div class="no-class">Your next class today.</div>`
+      ? `<div class="class-card"><span class="class-time">${escapeHtml(formatTime(upcoming.time))}</span><span class="class-stripe"></span><span class="class-info"><strong>${escapeHtml(upcoming.name)}</strong><small>${escapeHtml(upcoming.room)}</small></span></div><div class="no-class">Your next class today.</div>`
       : `<div class="no-class">${DAYS.includes(todayCode) ? "No more classes today. Take a breather." : "No classes scheduled today. Enjoy your day."}</div>`;
   }
   function renderWeek() {
@@ -497,6 +614,17 @@
     }),
   );
   $("#expense-filter").addEventListener("change", renderExpenses);
+  $("#grade-weights").addEventListener("change", (e) => {
+    const input = e.target.closest("[data-grade-weight]");
+    if (!input) return;
+    const category = input.dataset.gradeWeight;
+    state.gradeWeights[category] = input.value === ""
+      ? ""
+      : Math.min(100, Math.max(0, Number(input.value) || 0));
+    state.gradesComputed = false;
+    renderGradeSummary();
+    persist();
+  });
   $("#grade-rows").addEventListener("change", (e) => {
     const field = e.target.closest("[data-grade-row]");
     if (!field) return;
@@ -508,8 +636,8 @@
         : field.value === ""
           ? ""
           : Math.max(0, Number(field.value) || 0);
+      state.gradesComputed = false;
       if (property !== "category") {
-        state.gradesComputed = false;
         $$(".grade-raw").forEach((cell) => (cell.textContent = "—"));
       }
       renderGradeSummary();
@@ -529,6 +657,16 @@
     $('#grade-rows tr:last-child [data-grade-field="score"]')?.focus();
   });
   $("#compute-grade").addEventListener("click", () => {
+    if (Math.abs(getGradeWeightTotal() - 100) > 0.01) {
+      state.gradesComputed = false;
+      renderGradeSummary();
+      toast("Adjust category weights until they total 100%");
+      return;
+    }
+    if (getGradedWeight() <= 0) {
+      toast("Enter a score in a category with a weight above 0%");
+      return;
+    }
     state.gradesComputed = true;
     renderGrades();
     persist();
@@ -585,12 +723,12 @@
       "add-class": {
         title: "Add a class",
         subtitle: "BUILD YOUR WEEK",
-        fields: `${field("Subject", "name", "text", "", "", 'placeholder="e.g. Chemistry"')}<div class="dialog-grid">${field("Day", "day", "text", "Mon", DAYS)}${field("Start time", "time", "text", "9:00", ["8:00", "9:00", "10:00", "11:00", "12:00", "1:00", "2:00", "3:00", "4:00"])}</div>${field("Room or location", "room", "text", "", "", 'placeholder="e.g. Science Hall · 204"')}`,
+        fields: `${field("Subject", "name", "text", "", "", 'placeholder="e.g. Chemistry"')}<div class="dialog-grid">${field("Day", "day", "text", "Mon", DAYS)}${field("Start time", "time", "time", "09:00")}</div>${field("Room or location", "room", "text", "", "", 'placeholder="e.g. Science Hall · 204"')}`,
         save: (data) =>
           state.classes.push({
             id: makeId(),
             day: data.get("day"),
-            time: data.get("time"),
+            time: normalizeClassTime(data.get("time")),
             name: data.get("name").trim(),
             room: data.get("room").trim() || "Room not set",
           }),
