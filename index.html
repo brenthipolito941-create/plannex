@@ -38,7 +38,7 @@
           </div>
           <div class="profile">
             <div class="avatar">JS</div>
-            <div><strong>Jamie Santos</strong><small>Student workspace</small></div>
+            <div><strong>John Jones</strong><small>Student workspace</small></div>
             <span class="profile-dots">···</span>
           </div>
         </div>
@@ -95,7 +95,7 @@
               <article class="panel today-panel">
                 <div class="panel-heading">
                   <div><p class="eyebrow">MAKE IT COUNT</p><h2>Today’s plan <span class="heading-count" id="today-count">0</span></h2></div>
-                  <a href="#planner" class="text-link">See all <span>→</span></a>
+                  <a href="#planner" class="text-link" data-page="planner">See all <span>→</span></a>
                 </div>
                 <div class="task-list" id="overview-tasks"></div>
                 <button class="add-inline" data-action="add-task">＋ Add a task</button>
@@ -104,7 +104,7 @@
               <article class="panel schedule-panel">
                 <div class="panel-heading">
                   <div><p class="eyebrow">UP NEXT</p><h2>Your schedule</h2></div>
-                  <a href="#classes" class="text-link">Full week <span>→</span></a>
+                  <a href="#classes" class="text-link" data-page="classes">Full week <span>→</span></a>
                 </div>
                 <div class="next-class" id="next-class"></div>
               </article>
@@ -112,7 +112,7 @@
               <article class="panel spending-panel">
                 <div class="panel-heading">
                   <div><p class="eyebrow">MONEY CHECK-IN</p><h2>This month</h2></div>
-                  <a href="#budget" class="text-link">Budget <span>→</span></a>
+                  <a href="#budget" class="text-link" data-page="budget">Budget <span>→</span></a>
                 </div>
                 <div class="spend-total"><strong id="overview-spent">₱0</strong><span>spent so far</span></div>
                 <div class="budget-bar"><span id="budget-bar"></span></div>
@@ -184,7 +184,7 @@
               </div>
               <div class="table-scroll"><div class="timetable" id="timetable"></div></div>
             </article>
-            <p class="section-hint">Tip: classes repeat each week. Add your own subjects to make this schedule yours.</p>
+            <p class="section-hint">Tip: classes repeat each week. Add your subjects and choose the exact start time from your schedule.</p>
           </section>
 
           <!-- Budget: allowance and expenses are stored together in the planner state. -->
@@ -208,6 +208,19 @@
               <article class="stat-card budget-stat"><span>Left to spend</span><strong id="budget-remaining">₱0</strong><small id="budget-remaining-note">You’re doing great</small></article>
             </div>
 
+            <article class="panel weekly-budget-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">A QUICK CHECK-IN</p><h2>This week’s budget</h2></div>
+                <span class="rule-total" id="budget-week-range">Monday – Sunday</span>
+              </div>
+              <p class="weekly-budget-intro">Your weekly target is an average share of your monthly allowance (monthly allowance × 12 ÷ 52).</p>
+              <div class="weekly-budget-grid">
+                <article class="weekly-budget-stat"><span>Weekly target</span><strong id="budget-week-target">₱0</strong></article>
+                <article class="weekly-budget-stat"><span>Spent this week</span><strong id="budget-week-spent">₱0</strong></article>
+                <article class="weekly-budget-stat"><span>Left this week</span><strong id="budget-week-left">₱0</strong></article>
+              </div>
+            </article>
+
             <article class="panel expenses-panel">
               <div class="panel-heading">
                 <div><p class="eyebrow">THE LITTLE THINGS ADD UP</p><h2>Recent expenses</h2></div>
@@ -222,26 +235,50 @@
               </div>
               <div id="expense-list" class="expense-list"></div>
             </article>
+
+            <article class="panel budget-rule-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">A FLEXIBLE STARTING POINT</p><h2>Suggested 50 / 30 / 20 split</h2></div>
+                <span class="rule-total">From <strong id="rule-allowance">₱0</strong></span>
+              </div>
+              <p class="rule-intro">A simple guide for dividing your monthly allowance. Adjust it to fit your school costs and needs.</p>
+              <div class="budget-rule-grid">
+                <article class="rule-card rule-needs"><span>50% · NEEDS</span><strong id="rule-needs">₱0</strong><small>Food, transport, school essentials</small></article>
+                <article class="rule-card rule-wants"><span>30% · WANTS</span><strong id="rule-wants">₱0</strong><small>Fun, treats, and personal extras</small></article>
+                <article class="rule-card rule-savings"><span>20% · SAVINGS</span><strong id="rule-savings">₱0</strong><small>Save for goals or unexpected costs</small></article>
+              </div>
+              <p class="rule-note">These amounts are suggestions based on your allowance, not spending limits.</p>
+            </article>
           </section>
 
-          <!-- Grade calculator: enter assessment points, then compute the raw grade. -->
+          <!-- Grade calculator: set category weights, enter scores, then compute a weighted grade. -->
           <section class="page-section" id="page-grades">
             <div class="welcome-row">
               <div>
                 <p class="eyebrow">KEEP AN EYE ON YOUR PROGRESS</p>
                 <h1>Grade <span>calculator.</span></h1>
-                <p class="page-subtitle">Enter the score and total points for each assessment.</p>
+                <p class="page-subtitle">Match the category percentages to your course syllabus, then enter your scores.</p>
               </div>
             </div>
 
             <div class="grade-summary">
               <div>
-                <span class="eyebrow">OVERALL RAW GRADE</span>
+                <span class="eyebrow">CURRENT WEIGHTED GRADE</span>
                 <div class="grade-big" id="grade-average">—<small>%</small></div>
                 <p class="grade-caption" id="grade-caption">Enter scores and totals, then compute your grade.</p>
               </div>
               <div class="grade-summary-art"><span>✳</span></div>
             </div>
+
+            <article class="panel grade-weights-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">SET THIS FROM YOUR SYLLABUS</p><h2>Category weights</h2></div>
+                <span class="grade-weight-total" id="grade-weight-total">100%</span>
+              </div>
+              <p class="grade-weight-help">Enter how much each category counts toward your course grade. The weights must add up to 100% before calculation.</p>
+              <div class="grade-weight-grid" id="grade-weights"></div>
+              <p class="grade-weight-status" id="grade-weight-status" aria-live="polite"></p>
+            </article>
 
             <article class="panel grades-panel">
               <div class="panel-heading">
@@ -251,7 +288,7 @@
               <div class="grades-table-wrap">
                 <table class="grades-table">
                   <thead>
-                    <tr><th>CATEGORY</th><th>SCORE</th><th>TOTAL</th><th>RAW GRADE</th><th></th></tr>
+                    <tr><th>CATEGORY</th><th>SCORE</th><th>POSSIBLE</th><th>ITEM GRADE</th><th></th></tr>
                   </thead>
                   <tbody id="grade-rows"></tbody>
                 </table>
@@ -260,7 +297,7 @@
                 <button class="button button-quiet" id="add-grade-row" type="button">＋ Add row</button>
                 <button class="button button-dark" id="compute-grade" type="button">Compute grade</button>
               </div>
-              <p class="grade-note">Raw grade = points earned ÷ points possible × 100. All entered items contribute by their point totals.</p>
+              <p class="grade-note">Each category grade uses its earned points ÷ possible points. The category result is multiplied by its syllabus weight.</p>
             </article>
           </section>
 
@@ -283,6 +320,18 @@
           <button class="button button-dark" id="dialog-save" type="submit">Save</button>
         </div>
       </form>
+    </dialog>
+
+    <!-- Reminder alert stays open and the alarm repeats until Okay is pressed. -->
+    <dialog id="reminder-dialog" class="reminder-dialog" aria-labelledby="reminder-title" aria-describedby="reminder-description">
+      <p class="eyebrow">PLANNEX REMINDER</p>
+      <h2 id="reminder-title">Time to focus.</h2>
+      <p id="reminder-description">A task is due now.</p>
+      <div class="reminder-task-list" id="reminder-task-list"></div>
+      <p class="reminder-stop-note">The alarm will keep ringing until you press Okay.</p>
+      <div class="dialog-actions">
+        <button class="button button-dark" id="reminder-okay" type="button">Okay</button>
+      </div>
     </dialog>
 
     <!-- Load behavior after all page controls are in place. -->
