@@ -18,16 +18,7 @@ Use this as a starting point when you want to change something. Search for the n
 | Grade math | app.js | getRowGrade(), getGradeWeightTotal(), getGradedWeight(), and getOverallRawGrade() |
 | Task, class, or expense form fields and save behavior | app.js | openDialog() and its add-task, add-class, add-expense, and edit-budget entries |
 | How tasks are shown or completed | app.js | tasksMarkup() and renderTasks() |
-| How to edit a task, expense, or class | app.js | The pencil buttons in tasksMarkup(), renderExpenses(), and renderClasses(); openDialog() fills and saves the edit form |
-| How to remove an expense | app.js | The data-delete-expense click handler and renderExpenses() remove button |
-| Overview shortcut links | index.html and app.js | The data-page values on See all, Budget, and Full week; routed by the navigation handler |
-| Task due date/time and reminder choice | app.js | The add-task fields in openDialog(), tasksMarkup(), and checkTaskReminders() |
-| Reminder chime or notification permission behavior | app.js | playReminderAlarm(), prepareTaskReminder(), and startTaskReminderChecks() |
-| Timetable days or standard time rows | app.js | DAYS and HOURS; student-entered times add their own rows automatically |
-| How a class time is entered and displayed | app.js | normalizeClassTime(), formatTime(), and the add-class entry in openDialog() |
-| 50/30/20 budget suggestions | app.js | The 0.5, 0.3, and 0.2 calculations inside renderBudget() |
-| Weekly budget target and this week's expenses | app.js | The weekly budget calculations inside renderBudget(); the target uses monthly allowance × 12 ÷ 52 |
-| Weekly budget wording or layout | index.html and styles.css | The weekly-budget-panel markup and matching .weekly-budget styles |
+| Timetable days or time slots | app.js | DAYS, HOURS, and the classes list in seed |
 | Philippine peso formatting | app.js | money() and its PHP currency setting |
 | What is saved in this browser | app.js | KEY and persist() |
 
@@ -58,10 +49,10 @@ The top bar contains the mobile menu button, current page name, today's date, an
 Each main screen is a `<section class="page-section">`. Its `id` follows the `page-<name>` pattern, such as `page-budget`. Only the active section is displayed.
 
 - **Overview:** summary cards for open tasks, remaining budget, and average grade; task preview; next class; spending summary; and reminder card.
-- **Daily planner:** task list, All / To do / Completed filters, and a small weekly calendar. New tasks include a due date and time, with an optional browser notification and alarm. Use the pencil control to edit a task. At the due time, an alert stays open and the chime repeats until the student presses Okay. Reminders are checked while the planner is open; desktop notifications depend on browser support, a secure origin such as HTTPS or localhost, and permission. Reliable alerts after the page is closed would need a hosted push service.
-- **Class schedule:** a weekly timetable. Students enter a subject, weekday, exact start time, and room. The grid adds a row for custom times and sorts it chronologically. Use the pencil and × controls on a class block to edit or remove that class.
-- **Budget:** monthly allowance, expenses, remaining amount, this week's target/spending/remaining total, and a suggested 50/30/20 split. The weekly target is the monthly allowance multiplied by 12 and divided by 52; expenses count for the current Monday-to-Sunday week based on their saved date. Changing the allowance updates both the weekly target and the three 50/30/20 suggestions. Expense rows have pencil and × controls for editing or removing entries.
-- **Grade calculator:** editable syllabus weights, assessment rows with category, earned points, possible points, item percentage, and an overall weighted grade.
+- **Daily planner:** task list, All / To do / Completed filters, and a small weekly calendar.
+- **Class schedule:** a timetable grid that JavaScript fills from the class data.
+- **Budget:** allowance and spending totals, category filter, and expense list.
+- **Grade calculator:** assessment rows with category, score, total points, per-row raw grade, and an overall computed raw grade.
 
 The sections share a common page layout, and the footer closes the main content.
 
@@ -129,23 +120,15 @@ The opening function wrapper keeps variables private to this script. The numbere
 
 The render functions turn the current `state` into visible HTML and totals. The state is the source of truth; after a change, the affected screen is refreshed from it.
 
-- `tasksMarkup()` creates a task row, including its completion, edit, and delete controls.
-- `getRowGrade()` calculates one item's score divided by its possible points, as a percentage. For example, 18 points out of 20 is 90%.
-- `getGradeWeightTotal()` adds the percentages assigned to every category. The calculator requires this total to equal 100%.
-- `getGradedWeight()` checks which weighted categories contain valid assessment scores, then reports how much of the course weight those categories cover.
-- `getOverallRawGrade()` first calculates each scored category's points-earned divided by points-possible percentage. It multiplies each category percentage by that category's syllabus weight, adds those weighted results, and divides by the weight of categories with scores. That last step makes the display a current estimate when the student has not entered every category yet.
-- Example: if Exams are 40% and the exam category average is 80%, exams contribute 32 weighted points (`80 × 0.40`) to the full course result. If Performance Tasks are also 40% and average 90%, they contribute 36 points. The displayed current grade uses the scored categories' combined weight as its denominator; it is not a final course grade until the remaining categories are entered.
+- `tasksMarkup()` creates a task row, including its completion and delete controls.
+- `getRowGrade()` calculates one item's score divided by its total points, as a percentage.
+- `getOverallRawGrade()` combines completed items as total points earned divided by total possible points. An item worth more points has a larger effect on the overall raw grade. Category labels organize entries; they do not add separate category weights.
 - `renderTasks()` updates task counts, progress, and the filtered task list.
-- `tasksMarkup()` shows each task deadline and whether its reminder is set or already sent. `checkTaskReminders()` looks for due, unfinished tasks that opted into reminders, sends each reminder once, then saves the sent time. `startTaskReminderChecks()` checks every 15 seconds and again when the student returns to the tab. `startReminderAlarm()` opens the acknowledgement dialog and repeats the Web Audio chime; `stopReminderAlarm()` clears the repeat timer and closes it when Okay is clicked. A desktop notification requires permission. Because this app is a static page, its timer stops when the page closes; background push needs a service worker and a push server.
-- `renderExpenses()` displays expense rows with edit and remove controls. The delegated click handler calls `openDialog()` with the entry ID for edits or removes the saved item and recalculates the budget.
-- `renderBudget()` totals expenses, calculates the remaining allowance, and updates the dashboard and budget summary. It finds Monday and Sunday for the current week, adds only expenses dated in that range, and shows a weekly target calculated as monthly allowance × 12 ÷ 52. For a ₱12,000 monthly allowance, the average weekly target is about ₱2,769. It also calculates 50% for needs, 30% for wants, and 20% for savings; that same ₱12,000 suggests ₱6,000, ₱3,600, and ₱2,400. It calls `renderExpenses()` to draw the expense list.
+- `renderBudget()` totals expenses, calculates the remaining allowance, and updates the dashboard and budget summary. It calls `renderExpenses()` to draw the expense list.
 - `renderExpenses()` applies the selected category filter and formats expense dates.
-- `renderGradeWeights()` creates the editable percentage fields from `GRADE_CATEGORIES`.
-- `renderGradeSummary()` reports the total course weight, shows an error or success message, and displays the current weighted grade after calculation.
-- `renderGrades()` updates the grade summary and builds the assessment table, including a category selector and score/possible inputs. Results stay blank until Compute Grade is pressed again after a change.
-- `toMinutes()` converts normalized timetable times to numbers for sorting and finding the next class. Legacy `1:00`–`4:00` sample times are treated as afternoon classes during migration.
-- `formatTime()` displays the stored 24-hour time in a readable 12-hour format.
-- `renderClasses()` builds rows from the standard hours plus any custom student-entered times, places each class on its weekday, adds edit/remove buttons to the class blocks, and selects the next class for today.
+- `renderGrades()` updates the overall raw-grade display and builds the assessment table, including a category selector and score/total inputs for each row. Results stay blank until Compute Grade is pressed.
+- `toMinutes()` converts timetable times to numbers for sorting and finding the next class. The 1:00–4:00 entries are treated as afternoon classes.
+- `renderClasses()` builds the weekday timetable and selects the next class for today.
 - `renderWeek()` builds the small Monday-to-Sunday date strip.
 - `render()` runs all renderers, then saves the current state.
 
