@@ -368,7 +368,7 @@
     if (!("Notification" in window)) {
       toast("Desktop notifications are unavailable here. The in-page alarm works while Plannex is open.");
       return;
-    }     
+    }   
     if (Notification.permission === "default") {
       try {
         const permission = await Notification.requestPermission();
@@ -674,6 +674,9 @@
         const items = state.classes.filter(
           (item) => item.day === day && normalizeClassTime(item.time) === time,
         );
+        const blocks = items.map((item) =>
+          `<div class="class-block"><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(formatTime(item.time))} · ${escapeHtml(item.room)}</small><div class="class-actions"><button class="class-action" type="button" data-edit-class="${escapeHtml(item.id)}" aria-label="Edit ${escapeHtml(item.name)} class" title="Edit class">✎</button><button class="class-action" type="button" data-delete-class="${escapeHtml(item.id)}" aria-label="Remove ${escapeHtml(item.name)} class" title="Remove class">×</button></div></div>`,
+        ).join("");
         grid.insertAdjacentHTML(
           "beforeend",
           `<div class="class-slot">${blocks}</div>`,
@@ -818,8 +821,8 @@
         : field.value === ""
           ? ""
           : Math.max(0, Number(field.value) || 0);
+      state.gradesComputed = false;
       if (property !== "category") {
-        state.gradesComputed = false;
         $$(".grade-raw").forEach((cell) => (cell.textContent = "—"));
       }
       renderGradeSummary();
@@ -975,15 +978,14 @@
       "add-class": {
         title: "Add a class",
         subtitle: "BUILD YOUR WEEK",
-        fields: `${field("Subject", "name", "text", "", "", 'placeholder="e.g. Chemistry"')}<div class="dialog-grid">${field("Day", "day", "text", "Mon", DAYS)}${field("Start time", "time", "text", "9:00", ["8:00", "9:00", "10:00", "11:00", "12:00", "1:00", "2:00", "3:00", "4:00"])}</div>${field("Room or location", "room", "text", "", "", 'placeholder="e.g. Science Hall · 204"')}`,
-        save: (data) =>
-          state.classes.push({
-            id: makeId(),
-            day: data.get("day"),
-            time: data.get("time"),
-            name: data.get("name").trim(),
-            room: data.get("room").trim() || "Room not set",
-          }),
+        fields: classFields(),
+        save: (data) => state.classes.push({
+          id: makeId(),
+          day: data.get("day"),
+          time: normalizeClassTime(data.get("time")),
+          name: data.get("name").trim(),
+          room: data.get("room").trim() || "Room not set",
+        }),
       },
       "edit-class": editingClass ? {
         title: "Edit class",
